@@ -1,24 +1,357 @@
----
-title: app.json / app.config.js
-description: A reference of available properties in Expo app config.
-maxHeadingDepth: 5
----
 
-import { CodeSquare01Icon } from '@expo/styleguide-icons/outline/CodeSquare01Icon';
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  ScrollView,
+  StyleSheet,
+  Alert,
+  StatusBar
+} from 'react-native';
 
-import schema from '~/public/static/schemas/unversioned/app-config-schema.json';
-import AppConfigSchemaTable from '~/ui/components/AppConfigSchemaTable';
-import { BoxLink } from '~/ui/components/BoxLink';
+export default function App() {
+  const [role, setRole] = useState('customer');
 
-The following is a list of properties that are available for you under the `"expo"` key in **app.json** or **app.config.json**. These properties can be passed to the top level object of **app.config.js** or **app.config.ts**.
+  const [pickup, setPickup] = useState('');
+  const [destination, setDestination] = useState('');
+  const [details, setDetails] = useState('');
+  const [fee, setFee] = useState('');
 
-<BoxLink
-  title="Configuration with app config"
-  description="For information on app configuration, the differences between various app config files, and how to use them dynamically."
-  href="/workflow/configuration/"
-  Icon={CodeSquare01Icon}
-/>
+  const [orders, setOrders] = useState([]);
 
-## Properties
+  const createOrder = () => {
+    if (!pickup || !destination || !fee) {
+      Alert.alert('تنبيه', 'يرجى ملء جميع الحقول المطلوبة');
+      return;
+    }
 
-<AppConfigSchemaTable schema={schema} />
+    if (Number(fee) <= 0 || !Number.isFinite(Number(fee))) {
+      Alert.alert('تنبيه', 'أدخل أجرة توصيل صحيحة');
+      return;
+    }
+
+    const newOrder = {
+      id: Date.now().toString(),
+      pickup,
+      destination,
+      details,
+      fee: Number(fee),
+      status: 'pending'
+    };
+
+    setOrders(prev => [newOrder, ...prev]);
+
+    setPickup('');
+    setDestination('');
+    setDetails('');
+    setFee('');
+
+    Alert.alert('نجاح', 'تم إنشاء طلب التوصيل');
+  };
+
+  const acceptOrder = (id) => {
+    setOrders(prev =>
+      prev.map(order =>
+        order.id === id
+          ? { ...order, status: 'accepted' }
+          : order
+      )
+    );
+
+    Alert.alert('نجاح', 'تم قبول الطلب');
+  };
+
+  const completeOrder = (id) => {
+    setOrders(prev =>
+      prev.map(order =>
+        order.id === id
+          ? { ...order, status: 'completed' }
+          : order
+      )
+    );
+
+    Alert.alert('نجاح', 'تم إنهاء الطلب');
+  };
+
+  const statusText = (status) => {
+    if (status === 'pending') return 'بانتظار مندوب';
+    if (status === 'accepted') return 'تم قبول الطلب';
+    return 'تم إكمال التوصيل';
+  };
+
+  return (
+    <View style={styles.container}>
+      <StatusBar backgroundColor="#123C32" barStyle="light-content" />
+
+      <View style={styles.header}>
+        <Text style={styles.logo}>وصّلني 🇮🇶</Text>
+        <Text style={styles.subtitle}>خدمة التوصيل في العراق</Text>
+      </View>
+
+      <View style={styles.switch}>
+        <TouchableOpacity
+          style={[styles.switchButton, role === 'customer' && styles.active]}
+          onPress={() => setRole('customer')}
+        >
+          <Text style={styles.switchText}>الزبون</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.switchButton, role === 'driver' && styles.active]}
+          onPress={() => setRole('driver')}
+        >
+          <Text style={styles.switchText}>المندوب</Text>
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView contentContainerStyle={styles.content}>
+
+        <Text style={styles.location}>📍 صلاح الدين - قضاء بيجي</Text>
+
+        {role === 'customer' ? (
+          <View>
+            <Text style={styles.title}>اطلب مندوباً الآن</Text>
+
+            <Text style={styles.label}>مكان الاستلام</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="أدخل عنوان الاستلام"
+              value={pickup}
+              onChangeText={setPickup}
+            />
+
+            <Text style={styles.label}>مكان التسليم</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="أدخل عنوان التسليم"
+              value={destination}
+              onChangeText={setDestination}
+            />
+
+            <Text style={styles.label}>تفاصيل الطلب</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="اكتب تفاصيل إضافية"
+              value={details}
+              onChangeText={setDetails}
+            />
+
+            <Text style={styles.label}>أجرة التوصيل بالدينار</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="مثلاً 3000"
+              keyboardType="numeric"
+              value={fee}
+              onChangeText={setFee}
+            />
+
+            <TouchableOpacity
+              style={styles.mainButton}
+              onPress={createOrder}
+            >
+              <Text style={styles.buttonText}>إنشاء طلب التوصيل</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View>
+            <Text style={styles.title}>طلبات التوصيل المتاحة</Text>
+
+            {orders.filter(o => o.status === 'pending').length === 0 && (
+              <Text style={styles.empty}>لا توجد طلبات متاحة حالياً</Text>
+            )}
+          </View>
+        )}
+
+        <Text style={styles.sectionTitle}>طلبات التوصيل</Text>
+
+        {orders.length === 0 && (
+          <Text style={styles.empty}>لم يتم إنشاء أي طلب بعد</Text>
+        )}
+
+        {orders.map(order => (
+          <View key={order.id} style={styles.card}>
+            <Text style={styles.orderTitle}>طلب توصيل #{order.id.slice(-5)}</Text>
+
+            <Text style={styles.info}>📦 الاستلام: {order.pickup}</Text>
+            <Text style={styles.info}>📍 التسليم: {order.destination}</Text>
+            <Text style={styles.info}>📝 التفاصيل: {order.details || 'لا توجد'}</Text>
+            <Text style={styles.price}>💰 {order.fee.toLocaleString('en-US')} د.ع</Text>
+            <Text style={styles.status}>{statusText(order.status)}</Text>
+
+            {role === 'driver' && order.status === 'pending' && (
+              <TouchableOpacity
+                style={styles.mainButton}
+                onPress={() => acceptOrder(order.id)}
+              >
+                <Text style={styles.buttonText}>قبول الطلب</Text>
+              </TouchableOpacity>
+            )}
+
+            {role === 'driver' && order.status === 'accepted' && (
+              <TouchableOpacity
+                style={styles.completeButton}
+                onPress={() => completeOrder(order.id)}
+              >
+                <Text style={styles.buttonText}>إنهاء التوصيل</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        ))}
+
+        <Text style={styles.footer}>
+          وصّلني العراق - جميع الحقوق محفوظة
+        </Text>
+
+      </ScrollView>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F4F7F5'
+  },
+  header: {
+    backgroundColor: '#123C32',
+    paddingTop: 48,
+    paddingBottom: 25,
+    alignItems: 'center'
+  },
+  logo: {
+    fontSize: 30,
+    fontWeight: 'bold',
+    color: '#FFFFFF'
+  },
+  subtitle: {
+    color: '#D5E9DF',
+    marginTop: 6
+  },
+  switch: {
+    flexDirection: 'row',
+    margin: 15,
+    backgroundColor: '#E1EAE5',
+    borderRadius: 12,
+    padding: 4
+  },
+  switchButton: {
+    flex: 1,
+    padding: 13,
+    alignItems: 'center',
+    borderRadius: 10
+  },
+  active: {
+    backgroundColor: '#123C32'
+  },
+  switchText: {
+    fontWeight: 'bold',
+    color: '#123C32'
+  },
+  content: {
+    padding: 16,
+    paddingBottom: 40
+  },
+  location: {
+    textAlign: 'center',
+    color: '#176B50',
+    fontWeight: 'bold',
+    marginBottom: 20
+  },
+  title: {
+    fontSize: 23,
+    fontWeight: 'bold',
+    color: '#123C32',
+    textAlign: 'right',
+    marginBottom: 20
+  },
+  label: {
+    textAlign: 'right',
+    marginBottom: 7,
+    fontWeight: 'bold',
+    color: '#263B32'
+  },
+  input: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#DCE6DF',
+    borderRadius: 10,
+    padding: 14,
+    marginBottom: 16,
+    textAlign: 'right',
+    fontSize: 15
+  },
+  mainButton: {
+    backgroundColor: '#16865D',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 10
+  },
+  completeButton: {
+    backgroundColor: '#235AAB',
+    padding: 15,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginTop: 12
+  },
+  buttonText: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+    fontSize: 16
+  },
+  sectionTitle: {
+    fontSize: 21,
+    fontWeight: 'bold',
+    color: '#123C32',
+    textAlign: 'right',
+    marginTop: 30,
+    marginBottom: 15
+  },
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 17,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#E0E9E3'
+  },
+  orderTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#123C32',
+    textAlign: 'right',
+    marginBottom: 12
+  },
+  info: {
+    textAlign: 'right',
+    color: '#40564B',
+    marginBottom: 9,
+    fontSize: 14
+  },
+  price: {
+    textAlign: 'right',
+    color: '#16865D',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginTop: 5
+  },
+  status: {
+    textAlign: 'right',
+    color: '#B07816',
+    fontWeight: 'bold',
+    marginTop: 12
+  },
+  empty: {
+    textAlign: 'center',
+    color: '#77847C',
+    marginVertical: 20
+  },
+  footer: {
+    textAlign: 'center',
+    color: '#89958D',
+    marginTop: 30,
+    fontSize: 12
+  }
+});
